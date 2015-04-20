@@ -43,12 +43,22 @@ namespace QDLLib
         public void OpenDevice()
         {
             UsbDevice.UsbErrorEvent += new EventHandler<UsbError>(UsbErrorEvent);
-
-            UsbRegistry regDev = UsbDevice.AllDevices.Find((reg) => reg.Vid == VID && reg.Pid == PID);
+            UsbRegistry regDev = null;
+            if(Environment.OSVersion.Platform == PlatformID.Win32NT)
+            {
+                regDev = UsbDevice.AllWinUsbDevices.Find((reg) => reg.Vid == VID && reg.Pid == PID);
+            } else
+            {
+                regDev = UsbDevice.AllDevices.Find((reg) => reg.Vid == VID && reg.Pid == PID);
+            }
+            if(regDev == null)
+            {
+                throw new QDLDeviceNotFoundException("Unable to find device");
+            }
 
             if(!regDev.Open(out device) || device == null)
             {
-                throw new QDLDeviceNotFoundException("Device not found");
+                throw new QDLDeviceNotFoundException("Unable to open device");
             }
 
             if(UsbDevice.IsLinux)
