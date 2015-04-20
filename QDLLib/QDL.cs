@@ -71,7 +71,7 @@ namespace QDLLib
             }
 
             IUsbDevice wholeUsbDevice = device as IUsbDevice;
-            if(device != null)
+            if(wholeUsbDevice != null)
             {
                 wholeUsbDevice.SetConfiguration(1);
                 wholeUsbDevice.ClaimInterface(0);
