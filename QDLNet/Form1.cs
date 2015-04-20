@@ -23,36 +23,29 @@ namespace QDLNet
 
         private void button1_Click(object sender, EventArgs e)
         {
+
             if(qdl == null)
             {
                 qdl = new QDL();
-                
             }
             if(!qdl.isDeviceOpen())
             {
                 qdl.OpenDevice();
             }
 
-            if(!qdl.PerformBootstrap())
+            if(!qdl.isDeviceOpen())
             {
-                MessageBox.Show("Failure during bootstrap!");
+                MessageBox.Show("Unable to open device");
+                return;
             }
 
-            //var stream = new BufferedStream(File.Open(@"G:\Fastboot\lk_fastbootmobile_test.img", FileMode.Open));
-            var stream = new BufferedStream(File.Open(@"G:\Fastboot\twrp-2.8.6.0-find7.img", FileMode.Open));
-            
-            if(!qdl.WriteFile(0x06000000, stream))
-            {
-                MessageBox.Show("Failure writing file to flash");
-            }
+            qdl.PerformBootstrap();
 
-            if(!qdl.ResetDevice())
-            {
-                MessageBox.Show("Unable to reset device");
-            }
+            var stream = new BufferedStream(File.Open(@"G:\Fastboot\lk_fastbootmobile_test.img", FileMode.Open));
+            qdl.WriteFile(0x06000000, stream);
 
+            qdl.ResetDevice();
             qdl.Close();
-
         }
 
     }

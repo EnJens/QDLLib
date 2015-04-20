@@ -5,8 +5,10 @@ using System.Text;
 using System.Threading.Tasks;
 using LibUsbDotNet;
 using LibUsbDotNet.Main;
+using LibUsbDotNet.LudnMonoLibUsb;
 using System.IO;
 using QDLLib.Preloader;
+using QDLLib.Exceptions;
 
 namespace QDLLib
 {
@@ -14,6 +16,8 @@ namespace QDLLib
     public partial class QDL : IDisposable
     {
         private static Guid OPOQDLGuid = new Guid("{059C965F-45BB-4474-BB14-B95FD65A402C}");
+        private const int VID = 0x05C6;
+        private const int PID = 0x9008;
         private UsbDevice device = null;
         private UsbEndpointReader reader = null;
         private UsbEndpointWriter writer = null;
@@ -22,7 +26,7 @@ namespace QDLLib
         {
 
         }
-        
+
         ~QDL()
         {
             if (device != null && device.IsOpen)
@@ -33,14 +37,34 @@ namespace QDLLib
 
         void IDisposable.Dispose()
         {
-            
+
         }
 
-        public bool OpenDevice()
+        public void OpenDevice()
         {
-            if(!UsbDevice.OpenUsbDevice(ref OPOQDLGuid, out device))
+            UsbDevice.UsbErrorEvent += new EventHandler<UsbError>(UsbErrorEvent);
+
+            UsbRegistry regDev = UsbDevice.AllDevices.Find((reg) => reg.Vid == VID && reg.Pid == PID);
+
+            if(!regDev.Open(out device) || device == null)
             {
-                return false;
+                throw new QDLDeviceNotFoundException("Device not found");
+            }
+
+            if(UsbDevice.IsLinux)
+            {
+                MonoUsbDevice monodev = device as MonoUsbDevice;
+                if(!monodev.DetachKernelDriver())
+                {
+                    throw new Exception("Failed to detach kernel driver");
+                }
+            }
+
+            IUsbDevice wholeUsbDevice = device as IUsbDevice;
+            if(device != null)
+            {
+                wholeUsbDevice.SetConfiguration(1);
+                wholeUsbDevice.ClaimInterface(0);
             }
 
             reader = device.OpenEndpointReader(ReadEndpointID.Ep01);
@@ -48,9 +72,16 @@ namespace QDLLib
             if(reader == null || writer == null)
             {
                 device.Close();
-                return false;
+                device = null;
+                UsbDevice.Exit();
+                throw new Exception("Unable to open endpoints");
             }
-            return true;
+        }
+
+        private void UsbErrorEvent(object sender, UsbError e)
+        {
+            // TODO: Pass this on to Consumers of this library somehow
+            Console.WriteLine("Received error event ({0}): {1}", e.ErrorCode, e);
         }
 
         public bool isDeviceOpen()
@@ -70,7 +101,8 @@ namespace QDLLib
                 }
             }
 
-            if (reader.Read(response, timeout, out actual) != ErrorCode.Ok)
+            ErrorCode err = ErrorCode.Ok;
+            if ((err = reader.Read(response, timeout, out actual)) != ErrorCode.Ok)
             {
                 actualReceived = 0;
                 return false;
@@ -116,7 +148,7 @@ namespace QDLLib
             {
                 return false;
             }
-            
+
 
             for(int pos = start; pos < preloader.Length; pos += batchSize)
             {
@@ -136,13 +168,13 @@ namespace QDLLib
             return true;
         }
 
-        public bool PerformBootstrap()
+        public void PerformBootstrap()
         {
             if(device == null || !device.IsOpen)
             {
                 throw new InvalidOperationException("Device must be opened before bootstrap can be performed");
             }
-            
+
             PreloaderCommand response;
             int actual = 0;
             byte[] buffer = new byte[4096];
@@ -166,42 +198,38 @@ namespace QDLLib
                 // Execute the uploaded preloader
                 if (!transmitCommand(Commands.cmd3, 1000, ref buffer, out actual))
                 {
-                    throw new QDLBootstrapFailureException("Failure during cmd3");
+                    throw new QDLBootstrapFailureException("Failure during Execute");
                 }
 
                 // Now we're talking to the uploaded preloader, most likely.
                 if (!transmitCommand(Commands.Magic, 1000, out response))
                 {
-                    throw new QDLBootstrapFailureException("Failure during cmd4");
+                    throw new QDLBootstrapFailureException("Failure during Magic");
                 }
 
                 if (!transmitCommand(Commands.Magic, 1000, out response))
                 {
-                    throw new QDLBootstrapFailureException("Failure during cmd4");
+                    throw new QDLBootstrapFailureException("Failure during Magic2");
                 }
 
                 if (!transmitCommand(Commands.SetSecureMode, 1000, out response))
                 {
-                    throw new QDLBootstrapFailureException("Failure during cmd5");
+                    throw new QDLBootstrapFailureException("Failure during SetSecureMode");
                 }
 
                 if (!transmitCommand(Commands.OpenMulti, 1000, out response))
                 {
-                    throw new QDLBootstrapFailureException("Failure during cmd6");
+                    throw new QDLBootstrapFailureException("Failure during OpenMulti");
                 }
             }
             catch(Exception ex)
             {
                 Close();
-                return false;
+                throw;
             }
-
-            return true;
         }
 
-     
-
-        public bool WriteFile(uint flashOffset, BufferedStream file)
+        public void WriteFile(uint flashOffset, BufferedStream file)
         {
             byte[] buffer = new byte[1024];
             uint localOffset = flashOffset;
@@ -211,7 +239,11 @@ namespace QDLLib
                 PreloaderCommand response;
                 PreloaderCommand cmd = new PreloaderCommand(new WriteFlashPayload(localOffset, buffer));
                 byte[] data = cmd.Serialize();
-                transmitCommand(cmd, 1000, out response);
+                Console.WriteLine("Sending {0} bytes", read);
+                if(!transmitCommand(cmd, 1000, out response))
+                {
+                    throw new Exception("Failure during transmitting writeflash command");
+                }
                 if(response.payload is WriteFlashPayload)
                 {
                     localOffset += (uint)read;
@@ -225,22 +257,20 @@ namespace QDLLib
                     throw new Exception(String.Format("Message received from device: {0}", msgpl.Message));
                 }
             }
-            return true;
         }
-        
-        public bool ResetDevice()
+
+        public void ResetDevice()
         {
             PreloaderCommand response;
             if (!transmitCommand(Commands.CloseFlush, 1000,out response))
             {
-                throw new QDLBootstrapFailureException("Failure during cmd7");
+                throw new QDLResetFailureException("Failure during Flush");
             }
 
             if (!transmitCommand(Commands.Reset, 1000, out response))
             {
-                throw new QDLBootstrapFailureException("Failure during cmd8");
+                throw new QDLResetFailureException("Failure during Reset");
             }
-            return true;
         }
 
         public void Close()
@@ -249,7 +279,9 @@ namespace QDLLib
             {
                 device.Close();
             }
+            UsbDevice.Exit();
+            device = null;
         }
-        
+
     }
 }

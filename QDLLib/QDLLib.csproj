@@ -44,6 +44,8 @@
   <ItemGroup>
     <Compile Include="Commands.cs" />
     <Compile Include="Exceptions\QDLBootstrapFailureException.cs" />
+    <Compile Include="Exceptions\QDLDeviceNotFoundException.cs" />
+    <Compile Include="Exceptions\QDLResetFailureException.cs" />
     <Compile Include="PreloaderCommand.cs" />
     <Compile Include="Preloader\CommandType.cs" />
     <Compile Include="Preloader\MagicPayload.cs" />
