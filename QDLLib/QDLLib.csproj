@@ -60,6 +60,8 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <Compile Include="QDLUSB.cs" />
+    <Compile Include="QDLSerial.cs" />
     <Compile Include="QDL.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

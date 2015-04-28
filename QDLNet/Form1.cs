@@ -21,19 +21,53 @@ namespace QDLNet
             InitializeComponent();
         }
 
+        private QDL openBestDevice()
+        {
+            QDL myQDL = qdl;
+            try
+            {
+                if (myQDL == null)
+                {
+                    myQDL = new QDLUSB();
+                }
+                if (!myQDL.isDeviceOpen)
+                {
+                    myQDL.OpenDevice();
+                }
+            }
+            catch (QDLLib.Exceptions.QDLDeviceNotFoundException nex)
+            {
+                myQDL = null;
+            }
+
+            if (myQDL == null)
+            {
+                try
+                {
+                    if (myQDL == null)
+                    {
+                        myQDL = new QDLSerial();
+                    }
+                    if (!myQDL.isDeviceOpen)
+                    {
+                        myQDL.OpenDevice();
+                    }
+                }
+                catch (QDLLib.Exceptions.QDLDeviceNotFoundException nex)
+                {
+                    myQDL = null;
+                }
+            }
+
+            return myQDL;
+        }
+
         private void button1_Click(object sender, EventArgs e)
         {
 
-            if(qdl == null)
-            {
-                qdl = new QDL();
-            }
-            if(!qdl.isDeviceOpen())
-            {
-                qdl.OpenDevice();
-            }
+            qdl = openBestDevice();
 
-            if(!qdl.isDeviceOpen())
+            if(qdl == null || !qdl.isDeviceOpen)
             {
                 MessageBox.Show("Unable to open device");
                 return;
@@ -41,7 +75,7 @@ namespace QDLNet
 
             qdl.PerformBootstrap();
 
-            var stream = new BufferedStream(File.Open(@"G:\Fastboot\lk_fastbootmobile_test.img", FileMode.Open));
+            var stream = new BufferedStream(File.Open(@"G:\Fastboot\twrp-2.8.6.0-find7.img", FileMode.Open));
             qdl.WriteFile(0x06000000, stream);
 
             qdl.ResetDevice();

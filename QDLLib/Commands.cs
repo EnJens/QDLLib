@@ -8,8 +8,6 @@ using QDLLib.Preloader;
 
 namespace QDLLib
 {
-    partial class QDL
-    {
         class Commands
         {
             //QDL Commands
@@ -28,5 +26,4 @@ namespace QDLLib
             // Preloader binary
             public static byte[] preloader = Resources.MPRG8974;
         }
-    }
 }
