@@ -38,5 +38,10 @@ namespace QDLLib.Preloader
             string message = ASCIIEncoding.ASCII.GetString(payload, 1, payload.Length - 1);
             return (IPreloaderPayload)new MessagePayload(message);
         }
+
+        public override string ToString()
+        {
+            return String.Format("MessagePayload(Message={1}", Message);
+        }
     }
 }

@@ -38,5 +38,10 @@ namespace QDLLib.Preloader
             }
             return (IPreloaderPayload)new BytePayload(commandtype, data);
         }
+
+        public override string ToString()
+        {
+            return String.Format("BytePayload(Type={0}, Length={1}", CommandType, data.Length);
+        }
     }
 }

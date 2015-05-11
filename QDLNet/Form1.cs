@@ -9,6 +9,8 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.IO;
 using QDLLib;
+using LibUsbDotNet;
+using LibUsbDotNet.Main;
 
 namespace QDLNet
 {
@@ -75,11 +77,19 @@ namespace QDLNet
 
             qdl.PerformBootstrap();
 
-            var stream = new BufferedStream(File.Open(@"G:\Fastboot\twrp-2.8.6.0-find7.img", FileMode.Open));
-            qdl.WriteFile(0x06000000, stream);
+            var stream = new BufferedStream(File.Open(@"G:\Fastboot\cm-recovery.img", FileMode.Open));
+            qdl.WriteFile(0x7dc00000, stream);
 
             qdl.ResetDevice();
             qdl.Close();
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            foreach (UsbRegistry device in UsbDevice.AllWinUsbDevices)
+            {
+                Console.WriteLine("device: " + device);
+            }
         }
 
     }

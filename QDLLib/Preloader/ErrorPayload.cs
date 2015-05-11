@@ -42,5 +42,9 @@ namespace QDLLib.Preloader
             string message = ASCIIEncoding.ASCII.GetString(payload, 5, payload.Length - 5);
             return (IPreloaderPayload)new ErrorPayload(errorcode, message);
         }
+        public override string ToString()
+        {
+            return String.Format("ErrorPayload(ErrorCode={0:X8}, Message={1}", ErrorCode, Message);
+        }
     }
 }

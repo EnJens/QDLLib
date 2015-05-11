@@ -13,6 +13,8 @@ using QDLLib.Exceptions;
 namespace QDLLib
 {
     using Exceptions;
+    using log4net;
+    using System.Reflection;
     public class QDLUSB : QDL, IDisposable
     {
         private static Guid OPOQDLGuid = new Guid("{059C965F-45BB-4474-BB14-B95FD65A402C}");
@@ -21,10 +23,11 @@ namespace QDLLib
         private UsbDevice device = null;
         private UsbEndpointReader reader = null;
         private UsbEndpointWriter writer = null;
+        protected static ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         public QDLUSB()
         {
-
+            log.Info("QDLUsb initializing");
         }
 
         ~QDLUSB()
@@ -42,6 +45,7 @@ namespace QDLLib
 
         public override void OpenDevice()
         {
+            log.Info("QDLUsb trying to find device");
             UsbDevice.UsbErrorEvent += new EventHandler<UsbError>(UsbErrorEvent);
             UsbRegistry regDev = null;
             if(Environment.OSVersion.Platform == PlatformID.Win32NT)
@@ -53,19 +57,23 @@ namespace QDLLib
             }
             if(regDev == null)
             {
+                log.Error("No QDLUSB Devices found");
                 throw new QDLDeviceNotFoundException("Unable to find device");
             }
 
             if(!regDev.Open(out device) || device == null)
             {
+                log.Error("No QDLUSB Devices found");
                 throw new QDLDeviceNotFoundException("Unable to open device");
             }
 
             if(UsbDevice.IsLinux)
             {
+                log.Debug("Running on linux, detaching kernel driver");
                 MonoUsbDevice monodev = device as MonoUsbDevice;
                 if(!monodev.DetachKernelDriver())
                 {
+                    log.Error("Failed to detach kernel driver");
                     throw new Exception("Failed to detach kernel driver");
                 }
             }
@@ -84,14 +92,16 @@ namespace QDLLib
                 device.Close();
                 device = null;
                 UsbDevice.Exit();
+                log.Error("Failed to open endpoints");
                 throw new Exception("Unable to open endpoints");
             }
+            log.Info("Found QDLUSB device");
         }
 
         private void UsbErrorEvent(object sender, UsbError e)
         {
             // TODO: Pass this on to Consumers of this library somehow
-            Console.WriteLine("Received error event ({0}): {1}", e.ErrorCode, e);
+            log.ErrorFormat("Received error event ({0}): {1}", e.ErrorCode, e);
         }
 
         public override bool isDeviceOpen

@@ -151,6 +151,10 @@ namespace QDLLib
             }
             return ret;
         }
-
+        public override string ToString()
+        {
+            return String.Format("PreloaderCommand({0})", this.payload == null ? "Null" : this.payload.ToString());
+        }
     }
+    
 }

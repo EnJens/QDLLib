@@ -52,5 +52,10 @@ namespace QDLLib.Preloader
 
             return (IPreloaderPayload)ret;
         }
+
+        public override string ToString()
+        {
+            return String.Format("WriteFlashPayload(Type={0}, Offset={1:X8}, Length={2})", CommandType, Offset, Data.Length);
+        }
     }
 }

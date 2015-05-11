@@ -13,14 +13,19 @@ using QDLLib.Exceptions;
 namespace QDLLib
 {
     using Exceptions;
+    using log4net;
+    using System.Reflection;
+
     public class QDLSerial : QDL, IDisposable
     {
         private const int VID = 0x05C6;
         private const int PID = 0x9008;
         private SerialPort port;
+        protected static ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+
         public QDLSerial()
         {
-
+            log.Info("QDLSerial initializing");
         }
 
         ~QDLSerial()
@@ -64,13 +69,17 @@ namespace QDLLib
         public override void OpenDevice()
         {
             string[] names = locateInstalledQDLDevices();
+            log.DebugFormat("Found {0} installed QDL Devices", names.Length);
+            foreach (var name in names)
+                log.DebugFormat("Found QDLSerial {0}", name);
+
             if(names.Length < 1)
             {
                 throw new QDLDeviceNotFoundException("No matching serial port found");
             }
             // We always pick the first one.
             string selectedName = names[0];
-
+            log.DebugFormat("Picked QDLSerial device with name {0}", selectedName);
             port = new SerialPort(selectedName);
             
             if(port == null)
